@@ -57,11 +57,7 @@ btrfs_subvol=$snap_folder/snapshot
 
 rclone_config="--config $RCLONE_CONFIG_PATH"
 
-echo "WARNING ~ incomplete snapshot ~ WARNING" |
-    rclone $rclone_config rcat $CLOUD_NAME:$BUCKET_NAME/$config_name/state.txt
-
-echo "coping info.xml..."
-rclone $rclone_config sync $info_file $CLOUD_NAME:$BUCKET_NAME/$config_name
+rclone $rclone_config delete $CLOUD_NAME:$BUCKET_NAME/$config_name/state.txt
 
 echo "sending snapshot..."
 start=$(date +%s)
@@ -72,6 +68,9 @@ btrfs send $btrfs_subvol |
     rclone $rclone_config rcat $CLOUD_NAME:$BUCKET_NAME/$config_name/snapshot
 
 end=$(date +%s)
+
+echo "coping info.xml..."
+rclone $rclone_config sync $info_file $CLOUD_NAME:$BUCKET_NAME/$config_name
 
 echo "ok" |
     rclone $rclone_config rcat $CLOUD_NAME:$BUCKET_NAME/$config_name/state.txt
