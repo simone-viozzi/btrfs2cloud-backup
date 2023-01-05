@@ -42,7 +42,7 @@ if [ -z "$CLOUD_NAME" ] || \
     [ -z "$SNAPPER_MESSAGE" ] || \
     [ -z "$ZSTD_COMPRESSION_LEVEL" ] || \
     [ -z "$OPENSSL_PASSWD" ]; then
-    echo "ERROR: one or more variables are not set"
+    echo "ERROR: one or more variables in the config are not set"
     exit 1
 fi
 
