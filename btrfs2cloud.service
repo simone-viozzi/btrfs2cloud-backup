@@ -1,0 +1,13 @@
+[Unit]
+Description=Run btrfs2cloud for the config CONFIG_NAME
+Wants=network-online.target
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/flock -F /tmp/btrfs2cloud.lock \
+        /usr/bin/systemd-inhibit --who="btrfs2cloud" --why="btrfs2cloud is pushing a backup of CONFIG_NAME to the cloud" \
+        /usr/local/bin/btrfs2cloud.sh CONFIG_NAME

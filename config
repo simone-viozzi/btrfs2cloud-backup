@@ -1,0 +1,13 @@
+
+
+CLOUD_NAME=b2
+
+BUCKET_NAME="backup"
+
+RCLONE_CONFIG_PATH="/home/user/.config/rclone/rclone.conf"
+
+SNAPPER_MESSAGE="snap before b2 backup"
+
+ZSTD_COMPRESSION_LEVEL=10
+
+OPENSSL_PASSWD="password"

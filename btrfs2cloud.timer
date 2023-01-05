@@ -1,0 +1,11 @@
+[Unit]
+Description=Run btrfs2cloud once a month for the config CONFIG_NAME
+
+[Timer]
+OnCalendar=monthly
+RandomizedDelaySec=1d
+AccuracySec=1d
+Persistent=true
+
+[Install]
+WantedBy=timers.target
