@@ -7,7 +7,7 @@ A simple script to backup a btrfs sub-volume to any cloud supported by rclone.
 This script allow to backup a btrfs sub-volume to any cloud supported by rclone. Is meant for a disaster-recovery situation and do not support incremental snapshots.
 The snapshot themselves are managed by snapper, this way you can set up a clean-up service and they wont pile up.
 The snapshots are compressed and encrypted while they are uploaded.
-Is possible to confirm the validity of a snapshot with the `state.txt` file, it's content become `ok` only after the upload is completed.
+The script can handle if the service get interrupted, it will retry when possible and clean up partially uploaded files before uploading the new snapshot.
 
 ## Features
 
@@ -18,7 +18,9 @@ Is possible to confirm the validity of a snapshot with the `state.txt` file, it'
 - Send it to your favorite cloud using [rclone](https://rclone.org/).
 - Use a flock to avoid that 2 timers fire at the same time.
 - Use systemd-inhibit to inhibit poweroff / reboot while a snapshot is being uploaded.
-- through a file, allow to know if a backup was completed or not.
+- Through a file and naming, allow to know if a backup was completed or not.
+- It does not delete the old last uploaded snapshot until the new one is fully updated.
+- Handle the eventuality that the service get stopped while running, `persistent=true` in the timer, and clean up on partially uploaded files at the start of the back-up script.
 
 ## Structure
 
