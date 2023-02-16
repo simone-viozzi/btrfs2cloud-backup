@@ -4,9 +4,7 @@ A simple script to backup a btrfs sub-volume to any cloud supported by rclone.
 
 ## description
 
-This script allow to backup a btrfs sub-volume to any cloud supported by rclone. Is meant for a disaster-recovery situation and do not support incremental snapshots.
-The snapshot themselves are managed by snapper, this way you can set up a clean-up service and they wont pile up.
-The snapshots are compressed and encrypted while they are uploaded.
+This script allow backing up a btrfs sub-volume to any cloud supported by Rclone. It is meant for a disaster-recovery situation and do not support incremental snapshots. The snapshot themselves are managed by snapper, this way you can set up a clean-up service, and they won't pile up. The snapshots are compressed and encrypted while they are uploaded.
 The script can handle if the service get interrupted, it will retry when possible and clean up partially uploaded files before uploading the new snapshot.
 
 ## Features
