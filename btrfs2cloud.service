@@ -11,5 +11,5 @@ Type=simple
 ExecStart=/usr/bin/flock -F /tmp/btrfs2cloud.lock \
         /usr/bin/systemd-inhibit --who="btrfs2cloud" --why="btrfs2cloud is pushing a backup of CONFIG_NAME to the cloud" \
         /usr/local/bin/btrfs2cloud.sh CONFIG_NAME
-RestartSec=1d
+RestartSec=30m
 Restart=on-failure

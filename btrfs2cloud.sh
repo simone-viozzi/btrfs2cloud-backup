@@ -75,7 +75,8 @@ start=$(date +%s)
 btrfs send $btrfs_subvol |
     zstd -$ZSTD_COMPRESSION_LEVEL -c - |
     openssl enc -e -aes256 -pass "pass:$OPENSSL_PASSWD" -pbkdf2 |
-    rclone $rclone_config rcat $CLOUD_NAME:$BUCKET_NAME/$config_name/snapshot_new
+    rclone $rclone_config rcat --retries 5 --retries-sleep 60s --b2-chunk-size 256mi \
+            $CLOUD_NAME:$BUCKET_NAME/$config_name/snapshot_new
 
 end=$(date +%s)
 
