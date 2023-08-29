@@ -1,11 +1,15 @@
 #! /bin/bash
 
-# read the parameters from the command line
-
-config_name=$1
+config_name="$1"
 
 # fail on error
 set -e
+
+apprise_notify() {
+    curl -X POST -d '{"title":"btrfs2cloud", "body":"'"$1"'", "tag":"admin", "format":"markdown"}' \
+        -H "Content-Type: application/json" \
+        http://localhost:8005/notify/apprise
+}
 
 snap_path=$(snapper --machine-readable csv -c $config_name get-config | \
     grep SUBVOLUME | cut -d ',' -f 2)/.snapshots
@@ -46,6 +50,8 @@ if [ -z "$CLOUD_NAME" ] || \
     echo "ERROR: one or more variables in the config are not set"
     exit 1
 fi
+
+apprise_notify "⚠️ starting backup - **$config_name**"
 
 rclone_config="--config $RCLONE_CONFIG_PATH"
 
@@ -111,3 +117,4 @@ rclone $rclone_config moveto \
     $CLOUD_NAME:$BUCKET_NAME/$config_name/state.txt
 
 echo "all done"
+apprise_notify "✅ all done - **$config_name**"
