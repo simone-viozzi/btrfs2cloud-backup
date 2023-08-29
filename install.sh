@@ -6,9 +6,11 @@ config_folder="/etc/btrfs2cloud"
 
 if [ ! -d "$config_folder" ]; then
     # create the config folder
-    mkdir -p /etc/btrfs2cloud
+    mkdir -p "$config_folder"
     # copy the config template
-    cp config /etc/btrfs2cloud/config
+    cp config "$config_folder/config"
+else
+    echo "Warning: config folder already exists, skipping copy of config template"
 fi
 
 cp btrfs2cloud.sh /usr/local/bin/btrfs2cloud.sh
