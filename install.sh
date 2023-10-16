@@ -2,6 +2,13 @@
 
 set -e
 
+# check if the script is run as root
+if [ "$EUID" -ne 0 ]; then
+    echo "Error: Please run as root"
+    exit 1
+fi
+
+
 config_folder="/etc/btrfs2cloud"
 
 if [ ! -d "$config_folder" ]; then
