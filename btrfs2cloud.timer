@@ -2,9 +2,9 @@
 Description=Run btrfs2cloud once a month for the config CONFIG_NAME
 
 [Timer]
-OnCalendar=monthly
-RandomizedDelaySec=1d
-AccuracySec=1d
+OnCalendar=weekly
+RandomizedDelaySec=4d
+AccuracySec=4d
 Persistent=true
 
 [Install]

@@ -11,6 +11,14 @@ apprise_notify() {
         http://localhost:8005/notify/apprise
 }
 
+echo_array() {
+    local arr=("$@")
+    arr=($(echo "${arr[@]}" | tr ' ' '\n' | sort -r))
+    for i in "${arr[@]}"; do
+        echo -e "\t$i"
+    done
+}
+
 snap_path=$(snapper --machine-readable csv -c $config_name get-config | \
     grep SUBVOLUME | cut -d ',' -f 2)/.snapshots
 
@@ -46,34 +54,49 @@ if [ -z "$CLOUD_NAME" ] || \
     [ -z "$RCLONE_CONFIG_PATH" ] || \
     [ -z "$SNAPPER_MESSAGE" ] || \
     [ -z "$ZSTD_COMPRESSION_LEVEL" ] || \
-    [ -z "$OPENSSL_PASSWD" ]; then
+    [ -z "$OPENSSL_PASSWD" ] || \
+    [ -z "$SNAPSHOTS_TO_KEEP" ]; then
     echo "ERROR: one or more variables in the config are not set"
     exit 1
 fi
 
-apprise_notify "⚠️ starting backup - **$config_name**"
-
 rclone_config="--config $RCLONE_CONFIG_PATH"
 
-echo "delete old partial snapshot..."
+apprise_notify "⚠️ starting backup - **$config_name**"
 
-rclone $rclone_config delete $CLOUD_NAME:$BUCKET_NAME/$config_name/snapshot_new
-rclone $rclone_config delete $CLOUD_NAME:$BUCKET_NAME/$config_name/info_new.xml
-rclone $rclone_config delete $CLOUD_NAME:$BUCKET_NAME/$config_name/state_new.txt
-# to delete partial uploaded files, note: will delete only if they are a day old
-rclone $rclone_config cleanup $CLOUD_NAME:$BUCKET_NAME/$config_name
+files=$(rclone $rclone_config lsf $CLOUD_NAME:$BUCKET_NAME/$config_name/)
 
-echo "doing snapper snapshot for config $config_name..."
+previous_snapshots=()
+# get all files that end in _snapshot
+for file in $files; do
+    if [[ $file =~ _snapshot$ ]]; then
+        previous_snapshots+=($file)
+    fi
+done
 
-# create a snapper snapshot
+if [ -z "$previous_snapshots" ]; then
+    echo "no previous snapshots found"
+    previous_snapshots=()
+else
+    previous_snapshots=($previous_snapshots)
+
+    echo "list of previous snapshots:"
+    echo_array ${previous_snapshots[@]}
+fi
+
+curr_date=$(date +"%Y-%m-%dT%H-%M-%S%z")
+
+echo "clean partial files..."
+rclone $rclone_config cleanup $CLOUD_NAME:$BUCKET_NAME
+
+echo "doing snapper snapshot for config ${config_name}..."
 snap_num=$(snapper -c $config_name create -t single -d "$SNAPPER_MESSAGE" -c number -p)
 
 snap_folder=$snap_path/$snap_num
-info_file=$snap_folder/info.xml
 btrfs_subvol=$snap_folder/snapshot
 
 echo "WARNING ~ incomplete snapshot ~ WARNING" |
-    rclone $rclone_config rcat $CLOUD_NAME:$BUCKET_NAME/$config_name/state_new.txt
+    rclone $rclone_config rcat "${CLOUD_NAME}:${BUCKET_NAME}/${config_name}/${curr_date}_state.txt"
 
 echo "sending snapshot..."
 start=$(date +%s)
@@ -81,40 +104,65 @@ start=$(date +%s)
 btrfs send $btrfs_subvol |
     zstd -$ZSTD_COMPRESSION_LEVEL -c - |
     openssl enc -e -aes256 -pass "pass:$OPENSSL_PASSWD" -pbkdf2 |
-    rclone $rclone_config rcat --retries 5 --retries-sleep 60s --b2-chunk-size 256mi \
-            $CLOUD_NAME:$BUCKET_NAME/$config_name/snapshot_new
+    rclone $rclone_config rcat --retries 5 --retries-sleep 30s --b2-chunk-size 256mi \
+            "${CLOUD_NAME}:${BUCKET_NAME}/${config_name}/${curr_date}_snapshot"
 
-end=$(date +%s)
+ends=$(date +%s)
+echo "send completed, took $((ends - start))s"
 
-echo "coping info.xml..."
-cat $info_file |
-    rclone $rclone_config rcat $CLOUD_NAME:$BUCKET_NAME/$config_name/info_new.xml
-
-rclone $rclone_config delete $CLOUD_NAME:$BUCKET_NAME/$config_name/state_new.txt
+rclone $rclone_config delete "$CLOUD_NAME:$BUCKET_NAME/$config_name/${curr_date}_state.txt"
 echo "ok" |
-    rclone $rclone_config rcat $CLOUD_NAME:$BUCKET_NAME/$config_name/state_new.txt
+    rclone $rclone_config rcat "$CLOUD_NAME:$BUCKET_NAME/$config_name/${curr_date}_state.txt"
 
-echo "send completed, took $((end - start))s"
+timestamps=()
+for snapshot in "${previous_snapshots[@]}"; do
+    # select them only if they start with a timestamp
+    if [[ $snapshot =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T ]]; then
+        # keep only the timestamp
+        timestamp=$(echo "$snapshot" | cut -d '_' -f 1)
+        timestamps+=($timestamp)
+    fi
+done
 
-echo "deleting old snapshot..."
+#echo "list of timestamps:"
+#echo_array ${timestamps[@]}
 
-rclone $rclone_config delete $CLOUD_NAME:$BUCKET_NAME/$config_name/snapshot
-rclone $rclone_config delete $CLOUD_NAME:$BUCKET_NAME/$config_name/info.xml
-rclone $rclone_config delete $CLOUD_NAME:$BUCKET_NAME/$config_name/state.txt
+len_timestamps=${#timestamps[@]}
+#echo "len timestamps: $len_timestamps"
 
-echo "renaming new snapshot..."
+if [ "$len_timestamps" -gt "$SNAPSHOTS_TO_KEEP" ]; then
 
-rclone $rclone_config moveto \
-    $CLOUD_NAME:$BUCKET_NAME/$config_name/snapshot_new \
-    $CLOUD_NAME:$BUCKET_NAME/$config_name/snapshot
+    echo "deleting old snapshot..."
+    
+    n_to_delete=$((len_timestamps - SNAPSHOTS_TO_KEEP + 1))
+    
+    sorted_timestamps=($(echo "${timestamps[@]}" | tr ' ' '\n' | sort))
+    oldest_timestamps=("${sorted_timestamps[@]:0:$n_to_delete}")
 
-rclone $rclone_config moveto \
-    $CLOUD_NAME:$BUCKET_NAME/$config_name/info_new.xml \
-    $CLOUD_NAME:$BUCKET_NAME/$config_name/info.xml
+    echo "list of timestamps to be deleted..."
+    echo_array ${oldest_timestamps[@]}
 
-rclone $rclone_config moveto \
-    $CLOUD_NAME:$BUCKET_NAME/$config_name/state_new.txt \
-    $CLOUD_NAME:$BUCKET_NAME/$config_name/state.txt
+    files_to_delete=()
+    for timestamp in "${oldest_timestamps[@]}"; do
+        files_to_delete+=($(echo "$files" | grep "$timestamp"))
+    done
+
+    #echo "deleting old snapshots..."
+    #echo_array ${files_to_delete[@]}
+
+    for file in "${files_to_delete[@]}"; do
+        rclone $rclone_config delete "$CLOUD_NAME:$BUCKET_NAME/$config_name/$file"
+    done
+
+fi
+
+files=$(rclone $rclone_config lsf $CLOUD_NAME:$BUCKET_NAME/$config_name/)
+
+current_snapshots=$(echo "$files" | grep -E '_snapshot$')
+current_snapshots=($current_snapshots)
+
+echo "list of current snapshots:"
+echo_array ${current_snapshots[@]}
 
 echo "all done"
 apprise_notify "✅ all done - **$config_name**"

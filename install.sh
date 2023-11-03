@@ -8,7 +8,6 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-
 config_folder="/etc/btrfs2cloud"
 
 if [ ! -d "$config_folder" ]; then
