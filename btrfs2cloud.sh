@@ -78,8 +78,6 @@ if [ -z "$previous_snapshots" ]; then
     echo "no previous snapshots found"
     previous_snapshots=()
 else
-    previous_snapshots=($previous_snapshots)
-
     echo "list of previous snapshots:"
     echo_array ${previous_snapshots[@]}
 fi
@@ -128,13 +126,15 @@ done
 #echo_array ${timestamps[@]}
 
 len_timestamps=${#timestamps[@]}
-#echo "len timestamps: $len_timestamps"
+len_timestamps=$((len_timestamps + 1))
+echo "len timestamps: $len_timestamps"
+echo "snapshots to keep: $SNAPSHOTS_TO_KEEP"
 
 if [ "$len_timestamps" -gt "$SNAPSHOTS_TO_KEEP" ]; then
 
     echo "deleting old snapshot..."
     
-    n_to_delete=$((len_timestamps - SNAPSHOTS_TO_KEEP + 1))
+    n_to_delete=$((len_timestamps - SNAPSHOTS_TO_KEEP))
     
     sorted_timestamps=($(echo "${timestamps[@]}" | tr ' ' '\n' | sort))
     oldest_timestamps=("${sorted_timestamps[@]:0:$n_to_delete}")
